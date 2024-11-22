@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fireworks with Text</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fireworks"></canvas>
+
+  <script>
+    const canvas = document.getElementById("fireworks");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const messages = ["I", "Love", "You", "Wulan"];
+    let messageIndex = 0;
+
+    function getRandomColor() {
+      const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ffffff"];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    class Particle {
+      constructor(x, y, color, angle, speed) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.radius = Math.random() * 2 + 1;
+        this.alpha = 1;
+        this.angle = angle;
+        this.speed = speed;
+        this.decay = Math.random() * 0.02 + 0.01;
+      }
+
+      update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        if (this.alpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = this.alpha;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    class Rocket {
+      constructor(startX, startY, targetX, targetY, color, message) {
+        this.x = startX;
+        this.y = startY;
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.speed = 8;
+        this.exploded = false;
+        this.color = color;
+        this.particles = [];
+        this.message = message;
+        this.textScale = 0.1;
+        this.textAlpha = 1;
+      }
+
+      update() {
+        if (!this.exploded) {
+          const dx = this.targetX - this.x;
+          const dy = this.targetY - this.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > 5) {
+            const angle = Math.atan2(dy, dx);
+            this.x += Math.cos(angle) * this.speed;
+            this.y += Math.sin(angle) * this.speed;
+          } else {
+            this.explode();
+          }
+        } else {
+          this.particles = this.particles.filter((p) => p.alpha > 0);
+          this.particles.forEach((p) => p.update());
+
+          if (this.textScale < 1.5) {
+            this.textScale += 0.05; // Membesarkan teks
+          } else {
+            this.textAlpha -= 0.02; // Mengurangi opacity
+          }
+        }
+      }
+
+      explode() {
+        this.exploded = true;
+        const numParticles = 200;
+        for (let i = 0; i < numParticles; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 4 + 1;
+          const particle = new Particle(this.x, this.y, this.color, angle, speed);
+          this.particles.push(particle);
+        }
+      }
+
+      draw() {
+        if (!this.exploded) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.restore();
+        } else {
+          this.particles.forEach((p) => p.draw());
+          this.showText();
+        }
+      }
+
+      showText() {
+        ctx.save();
+        ctx.globalAlpha = this.textAlpha;
+        ctx.fillStyle = this.color;
+        ctx.font = `${60 * this.textScale}px Arial`;
+        ctx.textAlign = "center";
+        ctx.fillText(this.message, this.targetX, this.targetY);
+        ctx.restore();
+      }
+    }
+
+    class Launcher {
+      constructor() {
+        this.rocket = null;
+        this.launchX = canvas.width / 2;
+        this.launchY = canvas.height;
+      }
+
+      launch() {
+        if (!this.rocket) {
+          const targetX = Math.random() * (canvas.width * 0.8) + canvas.width * 0.1; // Hindari teks keluar frame
+          const targetY = Math.random() * (canvas.height / 2);
+          const color = getRandomColor();
+          const message = messages[messageIndex];
+
+          this.rocket = new Rocket(this.launchX, this.launchY, targetX, targetY, color, message);
+          messageIndex = (messageIndex + 1) % messages.length;
+        }
+      }
+
+      update() {
+        if (this.rocket) {
+          this.rocket.update();
+          if (this.rocket.exploded && this.rocket.textAlpha <= 0) {
+            this.rocket = null;
+          }
+        }
+      }
+
+      draw() {
+        if (this.rocket) {
+          this.rocket.draw();
+        }
+      }
+    }
+
+    const launcher = new Launcher();
+
+    function animate() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      launcher.update();
+      launcher.draw();
+
+      if (!launcher.rocket) {
+        launcher.launch();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
